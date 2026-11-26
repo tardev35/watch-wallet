@@ -2,9 +2,17 @@
 # เบอร์ในตัวอย่างเป็นเบอร์ปลอม ห้ามใส่เบอร์จริงของลูกค้า · รันด้วย npm test
 
 # ข้อความ notification จริงจาก ทดสอบ-01 (SmsForwarder 26 พ.ย. 2569 15:18) · title "TrueMoney Wallet" ถูกต่อหน้าข้อความ
-in 1 receive …4567 | TrueMoney Wallet คุณได้รับเงิน ฿ 1 จาก 0891234567
-in 1 receive …4567 | TrueMoney Wallet คุณได้รับเงิน ฿ 1 จาก 089-123-4567
+in 1 receive 0891234567 | TrueMoney Wallet คุณได้รับเงิน ฿ 1 จาก 0891234567
+in 1 receive 089-123-4567 | TrueMoney Wallet คุณได้รับเงิน ฿ 1 จาก 089-123-4567
 out 0.03 fee | TrueMoney Wallet คุณได้ชำระค่าธรรมเนียมการรับเงินโอน ฿ .03
+in 74 receive 0891234567 | TrueMoney Wallet คุณได้รับเงิน ฿ 74 จาก 0891234567
+out 2.15 fee | TrueMoney Wallet คุณได้ชำระค่าธรรมเนียมการรับเงินโอน ฿ 2.15
+
+# เติมเงินจากธนาคาร (16:04) · ค่าธรรมเนียมเติมเงินมาวินาทีเดียวกัน · มียอดคงเหลือและเลขรายการในวงเล็บ (เลขในตัวอย่างเป็นของปลอม)
+in 100 topup KTB ibanking topup TMN | TrueMoney Wallet คุณได้เติมเงิน 100.00 บ. ผ่าน KTB ibanking topup TMN ยอดเงินคงเหลือ 1,234.56 บ. (50000000000001)
+out 6 fee | TrueMoney Wallet คุณได้ชำระค่าธรรมเนียมการเติมเงิน ฿ 6.00
+
+# โอนออกในแอป (15:56) ไม่มี notification ส่งมาเลย ยังไม่มีตัวอย่าง
 none | SIM1_TestOperator_18888888888 [wallet-watch] Congratulations, the sender test is successful, please continue to add forwarding rules!
 
 # ถ้อยคำในหน้ารายการของแอป (ภาพ 25 พ.ย. 2569) ยังไม่ใช่ notification จริง
