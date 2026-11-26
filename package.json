@@ -1,0 +1,10 @@
+{
+  "name": "wallet-watch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "รับการแจ้งเตือนเงินเข้า–ออกจากมือถือที่ถือวอเล็ต แล้วสรุป realtime + สิ้นวัน + เตือน",
+  "scripts": { "start": "node --no-warnings server.mjs", "test": "node --test \"test/*.test.mjs\"" },
+  "engines": { "node": ">=22" },
+  "dependencies": { "express": "^4.21.2" }
+}

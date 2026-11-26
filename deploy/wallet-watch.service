@@ -1,0 +1,31 @@
+[Unit]
+Description=wallet-watch — รับการแจ้งเตือนเงินเข้า–ออกวอเล็ตจากมือถือ แล้วสรุป realtime + เตือน
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gsc
+Group=gsc
+WorkingDirectory=/opt/wallet-watch
+ExecStart=/usr/bin/node --no-warnings server.mjs
+Restart=always
+RestartSec=3
+
+Environment=NODE_ENV=production
+Environment=PORT=3960
+Environment=WW_DB_FILE=/var/lib/wallet-watch/wallet-watch.db
+EnvironmentFile=-/etc/wallet-watch/env
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/wallet-watch
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wallet-watch
+
+[Install]
+WantedBy=multi-user.target

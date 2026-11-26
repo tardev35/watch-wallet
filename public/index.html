@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wallet-watch · Central Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@100..900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f3f5fa; --card:#fff; --card2:#f7f8fc; --line:#e3e7f0; --text:#161a2b; --text2:#4b526a; --muted:#7f879e; --accent:#2f6fed; --accent-2:#1f55c4; --accent-soft:#e8efff; --ok:#1f9d5b; --ok-soft:#e4f6ec; --warn:#b9770b; --warn-soft:#fff3d6; --bad:#d33c4e; --bad-soft:#fde8ea; --side:#101a33; --side2:#1a2748; --sidetext:#c9d3ee; --shadow:0 1px 2px rgba(20,24,40,.05), 0 8px 24px rgba(20,24,40,.05); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0f1115; --card:#171a21; --card2:#1c2029; --line:#262b35; --text:#e8eaf0; --text2:#b4bacb; --muted:#8b93a7; --accent:#6a9bff; --accent-2:#8fb3ff; --accent-soft:#1d2a45; --ok:#4cd586; --ok-soft:#143224; --warn:#f0b43c; --warn-soft:#3a2d10; --bad:#ff6b7a; --bad-soft:#3a1519; --side:#0b1020; --side2:#141c33; --shadow:none; } }
+  :root[data-theme="dark"] { --bg:#0f1115; --card:#171a21; --card2:#1c2029; --line:#262b35; --text:#e8eaf0; --text2:#b4bacb; --muted:#8b93a7; --accent:#6a9bff; --accent-2:#8fb3ff; --accent-soft:#1d2a45; --ok:#4cd586; --ok-soft:#143224; --warn:#f0b43c; --warn-soft:#3a2d10; --bad:#ff6b7a; --bad-soft:#3a1519; --side:#0b1020; --side2:#141c33; --shadow:none; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font:14.5px/1.55 "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button { font:inherit; cursor:pointer; border:0; border-radius:10px; padding:8px 13px; background:var(--accent); color:#fff; } button:hover { background:var(--accent-2); }
+  button.ghost { background:var(--card); color:var(--text); border:1px solid var(--line); } button.ghost:hover { background:var(--card2); } button.soft { background:var(--accent-soft); color:var(--accent); } button.danger { background:var(--bad-soft); color:var(--bad); } button.icon { padding:5px 9px; font-size:13px; border-radius:8px; } button:disabled { opacity:.45; cursor:default; }
+  input, select, textarea { font:inherit; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 11px; outline:none; } input:focus, select:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  textarea { width:100%; min-height:120px; resize:vertical; font:13px/1.45 ui-monospace, Consolas, "Noto Sans Thai", monospace; background:var(--card2); }
+  .app { display:grid; grid-template-columns:230px 1fr; min-height:100vh; }
+  aside { background:var(--side); color:var(--sidetext); padding:18px 14px; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:4px; }
+  aside .brand { display:flex; align-items:center; gap:10px; color:#fff; font-weight:700; font-size:16px; padding:4px 8px 16px; }
+  aside .brand .mark { width:32px; height:32px; border-radius:10px; background:linear-gradient(135deg, #f0812b, #ffb15c); display:grid; place-items:center; color:#fff; }
+  aside .brand small { display:block; font-weight:400; font-size:11px; color:#8ea0cc; }
+  aside button.nav { display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:transparent; color:var(--sidetext); padding:10px 12px; border-radius:10px; font-size:14px; } aside button.nav:hover { background:var(--side2); } aside button.nav.on { background:var(--accent); color:#fff; }
+  aside button.nav i { width:20px; text-align:center; font-style:normal; opacity:.9; }
+  aside .foot { margin-top:auto; font-size:12px; color:#8ea0cc; padding:8px; display:flex; flex-direction:column; gap:6px; }
+  main { padding:18px 24px 60px; min-width:0; }
+  .top { display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .top h1 { margin:0; font-size:20px; } .top .sub { color:var(--muted); font-size:13px; }
+  .spacer { flex:1; }
+  .live { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:12.5px; } .live i { width:8px; height:8px; border-radius:50%; background:var(--ok); animation:pulse 1.6s infinite; } @keyframes pulse { 50% { opacity:.3; } }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:12px; margin-bottom:14px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 15px; box-shadow:var(--shadow); border-left:4px solid var(--c, var(--accent)); } .kpi b { display:block; font-size:21px; font-variant-numeric:tabular-nums; } .kpi span { color:var(--text2); font-size:12.5px; } .kpi small { display:block; color:var(--muted); font-size:11.5px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); margin-bottom:14px; }
+  .hd { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; } .hd h2 { margin:0; font-size:15px; } .hd .hint { color:var(--muted); font-size:12.5px; }
+  .bd { padding:14px 16px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; } @media (max-width:1100px) { .grid2 { grid-template-columns:1fr; } }
+  .tablewrap { overflow:auto; } table { border-collapse:separate; border-spacing:0; width:100%; font-size:13.5px; }
+  th, td { padding:9px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; white-space:nowrap; } thead th { color:var(--muted); font-weight:600; font-size:12.5px; background:var(--card2); } tbody tr:hover td { background:var(--accent-soft); }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; } tfoot td { font-weight:700; background:var(--card2); }
+  .brand-chip { display:inline-block; min-width:38px; text-align:center; padding:2px 8px; border-radius:7px; font-size:12px; font-weight:700; color:#fff; background:var(--c, #64748b); }
+  .st { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; padding:2px 9px; border-radius:999px; } .st i { width:8px; height:8px; border-radius:50%; } .st.ok { background:var(--ok-soft); color:var(--ok); } .st.ok i { background:var(--ok); } .st.warn { background:var(--warn-soft); color:var(--warn); } .st.warn i { background:var(--warn); } .st.bad { background:var(--bad-soft); color:var(--bad); } .st.bad i { background:var(--bad); } .st.off { background:var(--card2); color:var(--muted); } .st.off i { background:var(--muted); }
+  .tag { display:inline-block; padding:2px 9px; border-radius:7px; font-size:12px; font-weight:600; } .tag.match { background:var(--ok-soft); color:var(--ok); } .tag.review { background:var(--warn-soft); color:var(--warn); } .tag.unmatched, .tag.extra { background:var(--bad-soft); color:var(--bad); } .tag.in { background:var(--ok-soft); color:var(--ok); } .tag.out { background:var(--bad-soft); color:var(--bad); } .tag.fee { background:var(--card2); color:var(--muted); } .tag.pending { background:var(--card2); color:var(--muted); } .tag.accent { background:var(--accent-soft); color:var(--accent); }
+  .bar { width:150px; height:9px; border-radius:5px; background:var(--accent-soft); position:relative; overflow:hidden; display:inline-block; vertical-align:middle; margin-right:8px; } .bar b { position:absolute; left:0; top:0; bottom:0; background:var(--accent); } .bar.warn b { background:var(--warn); } .bar.bad b { background:var(--bad); }
+  .mono { font-family:ui-monospace, Consolas, "Noto Sans Thai", monospace; font-size:12.5px; } .muted { color:var(--muted); } .small { font-size:12px; }
+  .tabs2 { display:inline-flex; background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:3px; } .tabs2 button { background:transparent; color:var(--text2); padding:6px 14px; border-radius:8px; } .tabs2 button.on.in { background:var(--ok-soft); color:var(--ok); } .tabs2 button.on.out { background:var(--bad-soft); color:var(--bad); } .tabs2 button.on.all { background:var(--accent-soft); color:var(--accent); }
+  .msg { padding:10px 12px; border-radius:10px; margin-top:10px; font-size:13.5px; } .msg.ok { background:var(--ok-soft); color:var(--ok); } .msg.bad { background:var(--bad-soft); color:var(--bad); } .msg.warn { background:var(--warn-soft); color:var(--warn); }
+  .form { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:8px; align-items:end; } .form label { font-size:12px; color:var(--muted); display:block; margin-bottom:3px; }
+  code.hook { display:block; background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:12.5px; word-break:break-all; white-space:normal; margin-top:6px; }
+  svg { width:100%; height:auto; display:block; } .axis { stroke:var(--line); } .tick { fill:var(--muted); font-size:11px; } .cin { fill:#2f9e6f; } .cout { fill:#e36b6b; } .lbl { fill:var(--muted); font-size:11px; text-anchor:middle; }
+  .legend { display:flex; gap:14px; font-size:12.5px; color:var(--text2); margin-bottom:6px; } .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  .page { display:none; } .page.on { display:block; }
+  .empty { padding:28px; text-align:center; color:var(--muted); white-space:normal; }
+  pre.report { background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; white-space:pre-wrap; font:13px/1.5 ui-monospace, Consolas, "Noto Sans Thai", monospace; }
+  .toast { position:fixed; right:18px; bottom:18px; z-index:9; background:var(--text); color:var(--bg); padding:11px 14px; border-radius:12px; font-size:13.5px; opacity:0; transform:translateY(8px); transition:all .2s; max-width:420px; } .toast.show { opacity:1; transform:none; }
+  .kv { display:grid; grid-template-columns:200px 1fr; gap:6px 14px; font-size:13.5px; } .kv dt { color:var(--muted); } .kv dd { margin:0; }
+  @media (max-width:860px) { .app { grid-template-columns:1fr; } aside { position:static; height:auto; flex-direction:row; flex-wrap:wrap; } aside .brand { width:100%; padding-bottom:6px; } aside button.nav { width:auto; } aside .foot { display:none; } main { padding:14px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><div class="mark">฿</div><div>Central Audit<small>wallet-watch</small></div></div>
+    <button class="nav on" data-page="dash"><i>▦</i>Dashboard</button>
+    <button class="nav" data-page="wallet"><i>◉</i>Wallet</button>
+    <button class="nav" data-page="txn"><i>≡</i>Transaction</button>
+    <button class="nav" data-page="audit"><i>⇄</i>Audit Matching</button>
+    <button class="nav" data-page="exc"><i>⚠</i>Exception</button>
+    <button class="nav" data-page="sum"><i>▤</i>Summary</button>
+    <button class="nav" data-page="set"><i>⚙</i>Setting</button>
+    <div class="foot"><span class="live"><i></i>อัปเดตทุก 15 วิ</span><span id="tgfoot">Telegram: —</span><button class="ghost icon" id="theme" style="width:fit-content">◐ สลับโหมด</button></div>
+  </aside>
+  <main>
+    <div class="top">
+      <h1 id="title">Dashboard</h1><span class="sub" id="subtitle"></span>
+      <span class="spacer"></span>
+      <label class="small muted">วันที่</label><input type="date" id="day">
+      <button class="ghost icon" id="today">วันนี้</button>
+    </div>
+
+    <section class="page on" id="page-dash">
+      <div class="kpis" id="kpis"></div>
+      <div class="grid2">
+        <div class="card"><div class="hd"><h2>ธุรกรรมรายชั่วโมง</h2><span class="hint">บาท · เวลาไทย · ไม่รวมค่าธรรมเนียม</span></div><div class="bd"><div class="legend"><span><i style="background:#2f9e6f"></i>เงินเข้า</span><span><i style="background:#e36b6b"></i>เงินออก</span></div><div id="hourChart"></div></div></div>
+        <div class="card"><div class="hd"><h2>สถานะวอเล็ต</h2><span class="hint" id="walletHint"></span></div><div class="tablewrap"><table><thead><tr><th>รหัส</th><th>แบรนด์</th><th>สถานะ</th><th>รับ / วงเงิน</th><th class="num">เข้า</th><th class="num">ออก</th><th>ล่าสุด</th></tr></thead><tbody id="dashWallets"></tbody></table></div></div>
+      </div>
+      <div class="card"><div class="hd"><h2>การแจ้งเตือนที่ยังเปิดอยู่</h2></div><div class="bd" id="dashAlerts"></div></div>
+    </section>
+
+    <section class="page" id="page-wallet">
+      <div class="card"><div class="hd"><h2>Wallet List</h2><span class="hint" id="walletCount"></span></div>
+        <div class="tablewrap"><table><thead><tr><th>รหัสบัญชี</th><th>แบรนด์</th><th>เจ้าของ/ผู้ถือ</th><th>เบอร์</th><th class="num">วงเงิน/วัน</th><th>สถานะ</th><th>อัปเดตล่าสุด</th><th>token</th><th></th></tr></thead><tbody id="walletRows"></tbody></table></div></div>
+      <div class="card"><div class="hd"><h2>เพิ่ม Wallet</h2><span class="hint">หนึ่งเครื่อง = หนึ่งวอเล็ต · token แสดงครั้งเดียว</span></div>
+        <div class="bd"><div class="form">
+          <div><label>รหัส/ชื่อเรียก</label><input id="dName" placeholder="TW-SM-01"></div>
+          <div><label>เบอร์ 4 ตัวท้าย</label><input id="dLast4" placeholder="2421" maxlength="4"></div>
+          <div><label>แบรนด์</label><input id="dBrand" placeholder="SM"></div>
+          <div><label>เจ้าของ/ผู้ถือ</label><input id="dHolder" placeholder="ชื่อ"></div>
+          <div><label>วงเงินรับ/วัน</label><input id="dLimit" type="number" placeholder="0 = ไม่เตือน"></div>
+          <div><button id="dAdd">เพิ่ม</button></div>
+        </div><div id="devmsg"></div></div></div>
+      <div class="card"><div class="hd"><h2>แก้ไข Wallet</h2><span class="hint">กด "แก้" ในตารางด้านบน</span></div>
+        <div class="bd" id="editwrap" style="display:none"><div class="form">
+          <div><label>รหัส/ชื่อเรียก</label><input id="eName"></div><div><label>เบอร์ 4 ตัวท้าย</label><input id="eLast4" maxlength="4"></div><div><label>แบรนด์</label><input id="eBrand"></div><div><label>เจ้าของ/ผู้ถือ</label><input id="eHolder"></div><div><label>วงเงินรับ/วัน</label><input id="eLimit" type="number"></div><div><label>TrueMoney Webhook Secret</label><input id="eTmSecret" type="password" autocomplete="off"></div>
+          <div><button id="eSave">บันทึก</button> <button class="ghost" id="eCancel">ยกเลิก</button></div>
+        </div></div></div>
+    </section>
+
+    <section class="page" id="page-txn">
+      <div class="card"><div class="hd"><h2>Transaction Data</h2><select id="txDevice"><option value="">ทุกวอเล็ต</option></select><div class="tabs2"><button class="on all" data-dir="">ทั้งหมด</button><button class="in" data-dir="in">↓ เงินเข้า</button><button class="out" data-dir="out">↑ เงินออก</button></div><span class="hint" id="txCount"></span></div>
+        <div class="tablewrap"><table><thead><tr><th>เวลา</th><th>วอเล็ต</th><th>ประเภท</th><th class="num">จำนวนเงิน</th><th>ผู้โอน/ผู้รับ</th><th>อ้างอิง</th><th>ตรวจเทียบ</th><th>ข้อความ</th></tr></thead><tbody id="txRows"></tbody></table></div></div>
+    </section>
+
+    <section class="page" id="page-audit">
+      <div class="kpis" id="auditKpis"></div>
+      <div class="card"><div class="hd"><h2>นำเข้ารายการจากระบบหลังบ้าน</h2><span class="hint">ก๊อปตารางจากหน้า "รายการเงินเข้า / ถอน" ของระบบจับคู่สลิปมาวาง · แต่ละบรรทัดต้องมีเวลาและยอด · ถ้ามีเบอร์วอเล็ตจะจับคู่แม่นขึ้น</span><span class="spacer"></span><button class="ghost icon" id="auditRerun">จับคู่ใหม่</button><button class="danger icon" id="auditClear">ล้างข้อมูลหลังบ้านของวันนี้</button></div>
+        <div class="bd"><textarea id="boText" placeholder="2026-11-25 08:12:05	สลิป	TRUEWALLET 0800002421	฿500.00	0800001234	USER01"></textarea>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><button id="boPreview">ตรวจก่อน</button><button class="soft" id="boCommit" disabled>นำเข้าและจับคู่</button><span class="hint" id="boInfo"></span></div><div id="bomsg"></div><div id="boPreviewWrap" style="margin-top:10px"></div></div></div>
+      <div class="card"><div class="hd"><h2>ผลการตรวจเทียบ</h2><select id="auditDevice"><option value="">ทุกวอเล็ต</option></select><span class="hint">เกณฑ์: ทิศทางเดียวกัน ยอดเท่ากัน เวลาห่างไม่เกิน 10 นาที (และเบอร์ตรงถ้ามี)</span></div>
+        <div class="tablewrap"><table><thead><tr><th>เวลา (หลังบ้าน)</th><th>ประเภท</th><th class="num">ยอดเงิน</th><th>วอเล็ต</th><th>ผลการตรวจ</th><th>หมายเหตุ</th><th>เวลา (มือถือ)</th></tr></thead><tbody id="auditRows"></tbody></table></div></div>
+      <div class="card"><div class="hd"><h2>มือถือมี แต่หลังบ้านไม่มี</h2><span class="hint">รายการที่มือถือรายงานแต่ไม่พบคู่ในข้อมูลที่นำเข้า</span></div>
+        <div class="tablewrap"><table><thead><tr><th>เวลา</th><th>วอเล็ต</th><th>ประเภท</th><th class="num">ยอดเงิน</th><th>คู่โอน</th></tr></thead><tbody id="extraRows"></tbody></table></div></div>
+    </section>
+
+    <section class="page" id="page-exc">
+      <div class="card"><div class="hd"><h2>Exception Report</h2><span class="hint" id="excCount"></span></div>
+        <div class="tablewrap"><table><thead><tr><th>เวลา</th><th>Wallet</th><th>ประเภท</th><th class="num">ยอดเงิน</th><th>ประเด็น</th><th>รายละเอียด</th><th>สถานะ</th></tr></thead><tbody id="excRows"></tbody></table></div></div>
+    </section>
+
+    <section class="page" id="page-sum">
+      <div class="card"><div class="hd"><h2>Daily Summary</h2><span class="hint" id="sumHint"></span></div>
+        <div class="tablewrap"><table><thead><tr><th>Wallet</th><th>แบรนด์</th><th class="num">เงินเข้า</th><th class="num">เงินออก</th><th class="num">ค่าธรรมเนียม</th><th class="num">สุทธิ</th><th class="num">จำนวนรายการ</th><th class="num">Exception</th></tr></thead><tbody id="sumRows"></tbody><tfoot id="sumFoot"></tfoot></table></div></div>
+      <div class="card"><div class="hd"><h2>ย้อนหลัง 30 วัน</h2></div>
+        <div class="tablewrap"><table><thead><tr><th>วัน</th><th class="num">เงินเข้า</th><th class="num">รายการ</th><th class="num">เงินออก</th><th class="num">รายการ</th><th class="num">สุทธิ</th><th>รับมากสุด</th></tr></thead><tbody id="dailyRows"></tbody></table></div></div>
+      <div class="card"><div class="hd"><h2>ข้อความรายงานสิ้นวัน</h2><button class="ghost icon" id="copyReport">คัดลอก</button></div><div class="bd"><pre class="report" id="reportText"></pre></div></div>
+    </section>
+
+    <section class="page" id="page-set">
+      <div class="card"><div class="hd"><h2>Setting</h2></div><div class="bd"><dl class="kv">
+        <dt>Telegram</dt><dd id="setTg">—</dd>
+        <dt>กติกาเตือน</dt><dd>ใกล้วงเงิน 80% และ 95% ของวงเงินรับ/วัน · วอเล็ตไม่มีเงินเข้า 20 นาทีช่วงที่ 7 วันก่อนมีเฉลี่ย ≥ 3 รายการ · เครื่องไม่ส่งข้อความ 30 นาทีช่วง 08:00–02:00 (ข้อมูลขาด)</dd>
+        <dt>เกณฑ์จับคู่หลังบ้าน</dt><dd>ทิศทางเดียวกัน · ยอดเท่ากัน · เวลาห่างไม่เกิน 10 นาที · เบอร์ตรงถ้ามี · ค่าธรรมเนียมไม่นำมาจับคู่</dd>
+        <dt>รายงานสิ้นวัน</dt><dd>00:05 ของทุกวัน ส่ง Telegram ถ้าตั้งค่าไว้</dd>
+        <dt>webhook</dt><dd class="mono" id="hookBase"></dd>
+        <dt>คู่มือมือถือ</dt><dd>ใช้ MacroDroid (Play Store) หรือ SmsForwarder (APK) ส่ง POST JSON มาที่ webhook ของเครื่องนั้น · รายละเอียดใน docs/android-setup.md ของโปรเจกต์</dd>
+      </dl><div style="margin-top:12px"><button class="ghost" id="testTg">ส่งข้อความทดสอบ Telegram</button> <span class="hint" id="tgmsg"></span></div></div></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = (n) => Number(n ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const thTime = (t) => (t ? new Date(t).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Bangkok" }) : "—");
+const clock = (t) => (t ? new Date(t).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Bangkok" }) : "—");
+const ago = (t) => { if (!t) return "ไม่เคย"; const m = Math.round((Date.now() - Date.parse(t)) / 60000); return m < 1 ? "เมื่อกี้" : m < 60 ? `${m} นาทีก่อน` : m < 1440 ? `${Math.floor(m / 60)} ชม. ${m % 60} นาทีก่อน` : `${Math.floor(m / 1440)} วันก่อน`; };
+const thDay = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : "";
+const BRAND_COLORS = { SM: "#2f9e6f", PG: "#e04848", NM: "#2b8fa8", AM: "#8a63d2", KB: "#2f6fed", GG: "#8e44ad", VK: "#c0392b", TD: "#5d6d7e", SF: "#d4a017", SP: "#e67e22", WP: "#16a085", DB: "#f39c12", RC: "#7f8c8d", KK: "#27ae60", TG: "#e74c3c", WE: "#9b59b6", RCA: "#3498db" };
+const brandChip = (b) => b ? `<span class="brand-chip" style="--c:${BRAND_COLORS[b.toUpperCase()] || "#64748b"}">${esc(b)}</span>` : '<span class="muted">—</span>';
+const dirTag = (d, kind) => kind === "fee" ? '<span class="tag fee">ค่าธรรมเนียม</span>' : d === "in" ? '<span class="tag in">↓ เงินเข้า</span>' : '<span class="tag out">↑ เงินออก</span>';
+const auditTag = (s) => ({ match: '<span class="tag match">MATCH</span>', review: '<span class="tag review">REVIEW</span>', unmatched: '<span class="tag unmatched">UNMATCHED</span>', extra: '<span class="tag extra">ไม่พบในหลังบ้าน</span>', pending: '<span class="tag pending">รอ</span>' }[s] || '<span class="tag pending">ยังไม่ตรวจ</span>');
+async function api(url, opts) { const r = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts }); const j = await r.json().catch(() => ({ error: "อ่านคำตอบไม่ได้" })); if (!r.ok) throw new Error(j.error || r.status); return j; }
+const msg = (id, t, cls) => { $(id).innerHTML = t ? `<div class="msg ${cls}">${t}</div>` : ""; };
+let toastT; function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
+
+const TITLES = { dash: ["Dashboard", "ภาพรวมทุกวอเล็ต"], wallet: ["Wallet", "เลือก/เพิ่ม/แก้ไขวอเล็ตและแบรนด์"], txn: ["Transaction Data", "ข้อมูลรายการรายบัญชี"], audit: ["Audit Matching", "ตรวจเทียบกับระบบหลังบ้าน"], exc: ["Exception Report", "รายการผิดปกติ"], sum: ["Daily Summary", "สรุปผลรายวัน"], set: ["Setting", "ค่าระบบ"] };
+let PAGE = "dash", STATE = null, DAY = null;
+const todayBkk = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+$("day").value = todayBkk(); DAY = $("day").value;
+$("day").onchange = () => { DAY = $("day").value || todayBkk(); refresh(); };
+$("today").onclick = () => { $("day").value = todayBkk(); DAY = $("day").value; refresh(); };
+document.querySelectorAll("aside .nav").forEach((b) => b.onclick = () => { PAGE = b.dataset.page; document.querySelectorAll("aside .nav").forEach((x) => x.classList.toggle("on", x === b)); document.querySelectorAll(".page").forEach((p) => p.classList.toggle("on", p.id === "page-" + PAGE)); $("title").textContent = TITLES[PAGE][0]; $("subtitle").textContent = TITLES[PAGE][1]; refresh(); });
+const root = document.documentElement; try { const th = localStorage.getItem("ww-theme"); if (th) root.dataset.theme = th; } catch { }
+$("theme").onclick = () => { const dark = root.dataset.theme === "dark" || (!root.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches); root.dataset.theme = dark ? "light" : "dark"; try { localStorage.setItem("ww-theme", root.dataset.theme); } catch { } };
+$("hookBase").textContent = `${location.origin}/hook/<token>`;
+
+function statusOf(d) {
+  if (!d.active) return ["off", "ปิดใช้งาน"];
+  const isToday = DAY === todayBkk();
+  const seenMin = d.last_seen_at ? (Date.now() - Date.parse(d.last_seen_at)) / 60000 : Infinity;
+  if (isToday && seenMin > 30) return ["bad", `เครื่องเงียบ ${ago(d.last_seen_at)}`];
+  if (d.daily_limit && d.in_amt >= d.daily_limit * 0.95) return ["bad", "ถึงวงเงิน"];
+  if (d.daily_limit && d.in_amt >= d.daily_limit * 0.8) return ["warn", "ใกล้วงเงิน"];
+  const inMin = d.last_in ? (Date.now() - Date.parse(d.last_in)) / 60000 : Infinity;
+  if (isToday && inMin > 20 && d.in_n > 10) return ["warn", `ไม่มีเงินเข้า ${Math.round(inMin)} นาที`];
+  return ["ok", "ปกติ"];
+}
+function kpi(v, label, small, color) { return `<div class="kpi" style="--c:${color || "var(--accent)"}"><b>${v}</b><span>${label}</span>${small ? `<small>${small}</small>` : ""}</div>`; }
+
+async function loadState() { STATE = await api("/api/state?day=" + DAY); $("tgfoot").textContent = `Telegram: ${STATE.telegram ? "เปิด" : "ยังไม่ตั้งค่า"}`; $("setTg").textContent = STATE.telegram ? "ตั้งค่าแล้ว ส่งอัตโนมัติ" : "ยังไม่ตั้ง WW_TG_TOKEN / WW_TG_CHAT ใน /etc/wallet-watch/env"; return STATE; }
+
+function renderDash(s) {
+  const active = s.devices.filter((d) => d.active);
+  const bad = active.filter((d) => statusOf(d)[0] === "bad").length;
+  const a = s.audit || {}; const audited = (a.match || 0) + (a.review || 0) + (a.unmatched || 0);
+  const exceptions = (a.review || 0) + (a.unmatched || 0) + (s.extra || 0) + active.reduce((x, d) => x + d.unparsed_24h, 0) + (s.open_alerts || 0);
+  $("kpis").innerHTML = kpi(num(active.length), "บัญชีทั้งหมด", `${num(s.with_data)} บัญชีที่มีข้อมูลวันนี้`, "#2f6fed") +
+    kpi(num(s.totals.in_n), "รายการเงินเข้า", `${num(s.totals.out_n)} รายการเงินออก`, "#2f9e6f") +
+    kpi("฿" + num(s.totals.in_amt), "ยอดเงินเข้า", null, "#2f9e6f") +
+    kpi("฿" + num(s.totals.out_amt - (s.fees?.a || 0)), "ยอดเงินออก", `ค่าธรรมเนียม ฿${num(s.fees?.a || 0)} (${num(s.fees?.n || 0)} รายการ)`, "#e36b6b") +
+    kpi(audited ? `${num(a.match || 0)} <span class="small muted">(${Math.round((a.match || 0) / audited * 100)}%)</span>` : "—", "จับคู่สำเร็จ", audited ? `จาก ${num(audited)} รายการหลังบ้าน` : "ยังไม่นำเข้าข้อมูลหลังบ้าน", "#8a63d2") +
+    kpi(`<span style="color:${exceptions ? "var(--bad)" : "inherit"}">${num(exceptions)}</span>`, "ผิดปกติ", `วอเล็ตมีปัญหา ${bad} · เตือนค้าง ${num(s.open_alerts || 0)}`, "#d33c4e");
+  $("walletHint").textContent = `${thDay(s.day)}`;
+  $("dashWallets").innerHTML = active.length ? active.map((d) => { const [cls, label] = statusOf(d); const pct = d.daily_limit ? Math.min(100, d.in_amt / d.daily_limit * 100) : 0;
+    return `<tr><td><b>${esc(d.name)}</b><div class="muted small">…${esc(d.last4)}</div></td><td>${brandChip(d.brand)}</td><td><span class="st ${cls}"><i></i>${label}</span></td>
+      <td>${d.daily_limit ? `<span class="bar ${pct >= 95 ? "bad" : pct >= 80 ? "warn" : ""}"><b style="width:${pct}%"></b></span><span class="mono">${Math.round(pct)}%</span>` : '<span class="muted small">ไม่ตั้งวงเงิน</span>'}</td>
+      <td class="num mono">${num(d.in_amt)}</td><td class="num mono">${num(d.out_amt)}</td><td class="small muted">${ago(d.last_seen_at)}</td></tr>`; }).join("") : '<tr><td colspan="7"><div class="empty">ยังไม่มีวอเล็ต ไปที่หน้า Wallet เพื่อเพิ่ม</div></td></tr>';
+  hourChart(s.hourly);
+  const open = s.alerts.filter((x) => !x.closed_at);
+  $("dashAlerts").innerHTML = open.length ? open.map((x) => `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)"><span class="mono small">${clock(x.at)}</span><span style="flex:1">${esc(x.message)}</span><button class="ghost icon" data-close="${x.id}">ปิดเรื่อง</button></div>`).join("") : '<div class="muted">ไม่มีการแจ้งเตือนค้าง</div>';
+}
+$("dashAlerts").addEventListener("click", async (e) => { const b = e.target.closest("[data-close]"); if (!b) return; await api(`/api/alerts/${b.dataset.close}/close`, { method: "POST" }); refresh(); });
+function hourChart(hourly) {
+  const W = 760, H = 210, L = 58, R = 8, T = 12, B = 28;
+  const hrs = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+  const get = (h, dir) => hourly.find((x) => x.h === h && x.direction === dir)?.amt ?? 0;
+  const max = Math.max(1000, ...hrs.flatMap((h) => [get(h, "in"), get(h, "out")]));
+  const yMax = Math.ceil(max / 5000) * 5000; const y = (v) => T + (H - T - B) * (1 - v / yMax);
+  const bw = (W - L - R) / 24, w = (bw - 6) / 2;
+  let svg = `<svg viewBox="0 0 ${W} ${H}">`;
+  for (const f of [0, .25, .5, .75, 1]) svg += `<line class="axis" x1="${L}" x2="${W - R}" y1="${y(yMax * f)}" y2="${y(yMax * f)}"/><text class="tick" x="${L - 6}" y="${y(yMax * f) + 4}" text-anchor="end">${num(yMax * f)}</text>`;
+  hrs.forEach((h, i) => { const x = L + i * bw + 3; const a = get(h, "in"), b = get(h, "out");
+    svg += `<rect class="cin" x="${x}" y="${y(a)}" width="${w}" height="${y(0) - y(a)}" rx="2"><title>${h}:00 เข้า ${num(a)}</title></rect><rect class="cout" x="${x + w + 2}" y="${y(b)}" width="${w}" height="${y(0) - y(b)}" rx="2"><title>${h}:00 ออก ${num(b)}</title></rect>`;
+    if (i % 2 === 0) svg += `<text class="lbl" x="${x + w}" y="${H - 8}">${h}:00</text>`; });
+  $("hourChart").innerHTML = svg + "</svg>";
+}
+
+function renderWallets(s) {
+  $("walletCount").textContent = `${s.devices.length} บัญชี`;
+  $("walletRows").innerHTML = s.devices.length ? s.devices.map((d) => { const [cls, label] = statusOf(d); return `<tr data-id="${d.id}"><td><b>${esc(d.name)}</b></td><td>${brandChip(d.brand)}</td><td>${esc(d.holder) || "—"}</td><td class="mono">…${esc(d.last4)}</td><td class="num mono">${d.daily_limit ? num(d.daily_limit) : "—"}</td><td><span class="st ${cls}"><i></i>${label}</span></td><td class="small">${d.last_seen_at ? thTime(d.last_seen_at) : "ยังไม่เคยส่ง"}</td><td class="mono muted">${esc(d.token_hint)}${d.tm_secret_set ? `<div class="small">API ✓ ต่ออายุ URL ก่อน ${new Date(new Date(d.tm_secret_at).setMonth(new Date(d.tm_secret_at).getMonth() + 4)).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "Asia/Bangkok" })}</div>` : ""}</td>
+    <td style="text-align:right;white-space:nowrap"><button class="ghost icon" data-act="edit">แก้</button> <button class="ghost icon" data-act="rotate">token ใหม่</button> <button class="ghost icon" data-act="toggle">${d.active ? "ปิด" : "เปิด"}</button></td></tr>`; }).join("") : '<tr><td colspan="9"><div class="empty">ยังไม่มีวอเล็ต</div></td></tr>';
+}
+let EDIT = null;
+$("walletRows").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-act]"); if (!b) return; const id = Number(b.closest("tr").dataset.id); const d = STATE.devices.find((x) => x.id === id);
+  try {
+    if (b.dataset.act === "edit") { EDIT = id; $("editwrap").style.display = ""; $("eName").value = d.name; $("eLast4").value = d.last4; $("eBrand").value = d.brand; $("eHolder").value = d.holder; $("eLimit").value = d.daily_limit || ""; $("eTmSecret").value = ""; $("eTmSecret").placeholder = d.tm_secret_set ? "ตั้งแล้ว · เว้นว่าง = ไม่เปลี่ยน · ใส่ - = ลบ" : "ยังไม่ตั้ง · ได้จากแอปตอนตั้ง API"; $("eName").focus(); return; }
+    if (b.dataset.act === "rotate") { if (!confirm(`ออก token ใหม่ให้ ${d.name}? token เดิมจะใช้ไม่ได้ทันที`)) return; const r = await api(`/api/devices/${id}/rotate`, { method: "POST" }); showToken(d.name, r.token); }
+    if (b.dataset.act === "toggle") await api(`/api/devices/${id}`, { method: "PUT", body: JSON.stringify({ active: d.active ? 0 : 1 }) });
+    refresh();
+  } catch (err) { msg("devmsg", esc(err.message), "bad"); }
+});
+$("eSave").onclick = async () => { try { await api(`/api/devices/${EDIT}`, { method: "PUT", body: JSON.stringify({ name: $("eName").value, last4: $("eLast4").value, brand: $("eBrand").value, holder: $("eHolder").value, daily_limit: $("eLimit").value, tm_secret: $("eTmSecret").value }) }); $("eTmSecret").value = ""; $("editwrap").style.display = "none"; EDIT = null; toast("บันทึกแล้ว"); refresh(); } catch (err) { msg("devmsg", esc(err.message), "bad"); } };
+$("eCancel").onclick = () => { $("editwrap").style.display = "none"; EDIT = null; };
+function showToken(name, token) { msg("devmsg", `token ของ <b>${esc(name)}</b> (แสดงครั้งเดียว คัดลอกไปตั้งในแอปบนมือถือ):<div class="small">SmsForwarder</div><code class="hook">${location.origin}/hook/${esc(token)}</code><div class="small">Webhook API ของ TrueMoney</div><code class="hook">${location.origin}/tm/${esc(token)}</code>`, "ok"); }
+$("dAdd").onclick = async () => { try { const r = await api("/api/devices", { method: "POST", body: JSON.stringify({ name: $("dName").value, last4: $("dLast4").value, brand: $("dBrand").value, holder: $("dHolder").value, daily_limit: $("dLimit").value }) }); showToken($("dName").value, r.token); ["dName", "dLast4", "dBrand", "dHolder", "dLimit"].forEach((k) => $(k).value = ""); refresh(); } catch (err) { msg("devmsg", esc(err.message), "bad"); } };
+
+let TXDIR = "";
+document.querySelectorAll(".tabs2 button").forEach((b) => b.onclick = () => { TXDIR = b.dataset.dir; document.querySelectorAll(".tabs2 button").forEach((x) => x.classList.toggle("on", x === b)); loadTx(); });
+function fillDeviceSelects() { for (const id of ["txDevice", "auditDevice"]) { const sel = $(id); const v = sel.value; sel.innerHTML = '<option value="">ทุกวอเล็ต</option>' + STATE.devices.map((d) => `<option value="${d.id}">${esc(d.name)} …${esc(d.last4)}${d.brand ? " · " + esc(d.brand) : ""}</option>`).join(""); sel.value = v; } }
+$("txDevice").onchange = loadTx; $("auditDevice").onchange = loadAudit;
+async function loadTx() {
+  const p = new URLSearchParams({ device: $("txDevice").value, day: DAY, direction: TXDIR });
+  const t = await api("/api/txns?" + p);
+  $("txCount").textContent = `${num(t.rows.length)} รายการ`;
+  $("txRows").innerHTML = t.rows.length ? t.rows.map((r) => `<tr><td class="mono">${clock(r.at)}</td><td><b>${esc(r.device_name)}</b> <span class="muted small">…${esc(r.last4)}</span></td><td>${dirTag(r.direction, r.kind)}</td><td class="num mono"><b>${num(r.amount)}</b></td><td>${esc(r.counterpart) || '<span class="muted">—</span>'}</td><td class="mono muted small">EV${r.event_id}</td><td>${r.kind === "fee" ? '<span class="muted small">—</span>' : auditTag(r.audit || "none")}</td><td class="muted small" style="white-space:normal;max-width:380px">${esc(r.text)}</td></tr>`).join("") : '<tr><td colspan="8"><div class="empty">ไม่มีรายการในวันนี้</div></td></tr>';
+}
+
+let BOPLAN = null;
+$("boText").addEventListener("input", () => { const n = $("boText").value.split("\n").filter((l) => l.trim()).length; $("boInfo").textContent = n ? `${num(n)} บรรทัด` : ""; });
+$("boPreview").onclick = async () => { msg("bomsg", "", ""); $("boCommit").disabled = true; try { const d = await api("/api/audit/import", { method: "POST", body: JSON.stringify({ text: $("boText").value, day: DAY, dry_run: true }) }); BOPLAN = d; $("boCommit").disabled = !d.summary.ok; $("boCommit").textContent = d.summary.ok ? `นำเข้าและจับคู่ ${num(d.summary.ok)} รายการ` : "ไม่มีรายการที่อ่านได้";
+  $("boPreviewWrap").innerHTML = `<div class="hint" style="margin-bottom:6px">อ่านได้ ${num(d.summary.ok)} · ผิดรูปแบบ ${num(d.summary.invalid)}</div><div class="tablewrap" style="max-height:300px;border:1px solid var(--line);border-radius:10px"><table><thead><tr><th class="num">บรรทัด</th><th>ผล</th><th>เวลา</th><th>ประเภท</th><th class="num">ยอด</th><th>เบอร์</th><th>อ้างอิง</th><th>ข้อความเดิม</th></tr></thead><tbody>${d.rows.map((r) => `<tr><td class="num">${r.line}</td><td>${r.status === "ok" ? '<span class="tag match">อ่านได้</span>' : `<span class="tag unmatched">ผิดรูปแบบ</span><div class="muted small">${esc(r.reason)}</div>`}</td><td class="mono">${r.at ? thTime(r.at) : ""}</td><td>${r.direction ? dirTag(r.direction) : ""}</td><td class="num mono">${r.amount != null ? num(r.amount) : ""}</td><td class="mono">${esc(r.last4 || "")}</td><td class="mono small">${esc(r.ref || "")}</td><td class="muted small mono" style="white-space:normal;max-width:420px">${esc(r.raw)}</td></tr>`).join("")}</tbody></table></div>`; } catch (err) { msg("bomsg", esc(err.message), "bad"); } };
+$("boCommit").onclick = async () => { $("boCommit").disabled = true; try { const d = await api("/api/audit/import", { method: "POST", body: JSON.stringify({ text: $("boText").value, day: DAY }) }); msg("bomsg", `นำเข้าใหม่ ${num(d.added)} · ซ้ำของเดิม ${num(d.dup)} · ${d.stats.map((s) => `${s.day}: MATCH ${s.match} · REVIEW ${s.review} · UNMATCHED ${s.unmatched} · มือถือเกิน ${s.extra}`).join(" / ")}`, "ok"); $("boPreviewWrap").innerHTML = ""; $("boText").value = ""; $("boInfo").textContent = ""; toast("จับคู่เสร็จ"); refresh(); } catch (err) { msg("bomsg", esc(err.message), "bad"); $("boCommit").disabled = false; } };
+$("auditRerun").onclick = async () => { const r = await api("/api/audit/run", { method: "POST", body: JSON.stringify({ day: DAY }) }); toast(`จับคู่ใหม่: MATCH ${r.match} · REVIEW ${r.review} · UNMATCHED ${r.unmatched}`); refresh(); };
+$("auditClear").onclick = async () => { if (!confirm(`ลบข้อมูลหลังบ้านของวันที่ ${DAY} ทั้งหมด? (รายการจากมือถือไม่หาย)`)) return; await api(`/api/audit/${DAY}`, { method: "DELETE" }); toast("ล้างแล้ว"); refresh(); };
+async function loadAudit() {
+  const a = await api(`/api/audit?day=${DAY}&device=${$("auditDevice").value}`);
+  const c = { match: 0, review: 0, unmatched: 0 }; for (const r of a.bo) c[r.status] = (c[r.status] || 0) + 1;
+  const total = a.bo.length;
+  $("auditKpis").innerHTML = kpi(num(total), "รายการหลังบ้านที่นำเข้า", thDay(DAY), "#2f6fed") + kpi(num(c.match), "MATCH", total ? `${Math.round(c.match / total * 100)}%` : "", "#2f9e6f") + kpi(num(c.review), "REVIEW ยอดไม่ตรง", null, "#b9770b") + kpi(num(c.unmatched), "UNMATCHED ไม่พบในมือถือ", null, "#d33c4e") + kpi(num(a.extra.length), "มือถือมี หลังบ้านไม่มี", null, "#8a63d2");
+  $("auditRows").innerHTML = a.bo.length ? a.bo.map((r) => `<tr><td class="mono">${clock(r.at)}</td><td>${dirTag(r.direction)}</td><td class="num mono"><b>${num(r.amount)}</b></td><td>${esc(r.device_name || (r.last4 ? "…" + r.last4 : "—"))}</td><td>${auditTag(r.status)}</td><td class="small">${esc(r.note)}</td><td class="mono small muted">${r.txn_at ? clock(r.txn_at) : "—"}</td></tr>`).join("") : '<tr><td colspan="7"><div class="empty">ยังไม่มีข้อมูลหลังบ้านของวันนี้ วางข้อมูลด้านบนแล้วกด "ตรวจก่อน"</div></td></tr>';
+  $("extraRows").innerHTML = a.extra.length ? a.extra.map((r) => `<tr><td class="mono">${clock(r.at)}</td><td><b>${esc(r.device_name)}</b> <span class="muted small">…${esc(r.last4)}</span></td><td>${dirTag(r.direction, r.kind)}</td><td class="num mono">${num(r.amount)}</td><td>${esc(r.counterpart) || "—"}</td></tr>`).join("") : '<tr><td colspan="5"><div class="empty">ไม่มี</div></td></tr>';
+}
+async function loadExc() {
+  const e = await api("/api/exceptions?day=" + DAY);
+  $("excCount").textContent = `${num(e.items.length)} รายการ · ${thDay(DAY)}`;
+  $("excRows").innerHTML = e.items.length ? e.items.map((x) => `<tr><td class="mono">${clock(x.at)}</td><td>${esc(x.wallet)}</td><td>${x.direction ? dirTag(x.direction) : '<span class="muted">—</span>'}</td><td class="num mono">${x.amount != null ? num(x.amount) : "—"}</td><td><b>${esc(x.kind)}</b></td><td class="small" style="white-space:normal;max-width:460px">${esc(x.note)}</td><td>${x.source === "alert" ? (x.closed ? '<span class="tag pending">ปิดแล้ว</span>' : `<button class="ghost icon" data-close="${x.id}">ปิดเรื่อง</button>`) : '<span class="tag review">ตรวจสอบ</span>'}</td></tr>`).join("") : '<tr><td colspan="7"><div class="empty">ไม่มีรายการผิดปกติ</div></td></tr>';
+}
+$("excRows").addEventListener("click", async (e) => { const b = e.target.closest("[data-close]"); if (!b) return; await api(`/api/alerts/${b.dataset.close}/close`, { method: "POST" }); loadExc(); });
+async function loadSum() {
+  const [s, d, r] = await Promise.all([api("/api/summary?day=" + DAY), api("/api/daily?days=30"), api("/api/daily-report?day=" + DAY)]);
+  $("sumHint").textContent = thDay(DAY);
+  const t = s.rows.reduce((a, x) => ({ in: a.in + x.in_amt, out: a.out + x.out_amt, fee: a.fee + x.fee, n: a.n + (x.in_n || 0) + (x.out_n || 0), e: a.e + x.exceptions }), { in: 0, out: 0, fee: 0, n: 0, e: 0 });
+  $("sumRows").innerHTML = s.rows.length ? s.rows.map((x) => `<tr><td><b>${esc(x.name)}</b> <span class="muted small">…${esc(x.last4)}</span></td><td>${brandChip(x.brand)}</td><td class="num mono">${num(x.in_amt)}</td><td class="num mono">${num(x.out_amt)}</td><td class="num mono muted">${num(x.fee)}</td><td class="num mono">${num(x.in_amt - x.out_amt - x.fee)}</td><td class="num">${num((x.in_n || 0) + (x.out_n || 0))}</td><td class="num">${x.exceptions ? `<span class="tag unmatched">${x.exceptions}</span>` : '<span class="muted">0</span>'}</td></tr>`).join("") : '<tr><td colspan="8"><div class="empty">ยังไม่มีวอเล็ต</div></td></tr>';
+  $("sumFoot").innerHTML = `<tr><td>รวม</td><td></td><td class="num mono">${num(t.in)}</td><td class="num mono">${num(t.out)}</td><td class="num mono">${num(t.fee)}</td><td class="num mono">${num(t.in - t.out - t.fee)}</td><td class="num">${num(t.n)}</td><td class="num">${num(t.e)}</td></tr>`;
+  $("dailyRows").innerHTML = d.rows.map((x) => { const top = [...x.per].sort((a, b) => b.in_amt - a.in_amt)[0]; return `<tr><td class="mono">${x.day}</td><td class="num mono">${num(x.in_amt)}</td><td class="num muted">${num(x.in_n)}</td><td class="num mono">${num(x.out_amt)}</td><td class="num muted">${num(x.out_n)}</td><td class="num mono">${num(x.in_amt - x.out_amt)}</td><td>${top && top.in_amt ? `${esc(top.name)} ${num(top.in_amt)}` : '<span class="muted">—</span>'}</td></tr>`; }).join("");
+  $("reportText").textContent = r.text;
+}
+$("copyReport").onclick = async () => { await navigator.clipboard.writeText($("reportText").textContent); toast("คัดลอกแล้ว"); };
+$("testTg").onclick = async () => { const r = await api("/api/test-telegram", { method: "POST" }); $("tgmsg").textContent = r.ok ? "ส่งแล้ว" : "ส่งไม่ได้ (ยังไม่ตั้งค่า หรือ token ผิด)"; };
+
+async function refresh() {
+  try {
+    const s = await loadState(); fillDeviceSelects();
+    if (PAGE === "dash") renderDash(s);
+    if (PAGE === "wallet") renderWallets(s);
+    if (PAGE === "txn") await loadTx();
+    if (PAGE === "audit") await loadAudit();
+    if (PAGE === "exc") await loadExc();
+    if (PAGE === "sum") await loadSum();
+  } catch (e) { toast("โหลดไม่สำเร็จ: " + e.message); }
+}
+refresh(); setInterval(() => { if (PAGE === "dash" || PAGE === "wallet") refresh(); }, 15000);
+</script>
+</body>
+</html>
