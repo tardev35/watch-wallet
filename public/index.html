@@ -52,6 +52,15 @@
   .legend { display:flex; gap:14px; font-size:12.5px; color:var(--text2); margin-bottom:6px; } .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
   .range { display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap; } .range label { font-size:12.5px; color:var(--muted); } .range input { padding:6px 9px; }
   .txsum { display:flex; flex-wrap:wrap; gap:4px 16px; padding:9px 16px; border-bottom:1px solid var(--line); font-size:13px; color:var(--text2); background:var(--card2); } .txsum b { font-variant-numeric:tabular-nums; } .txsum .in { color:var(--ok); } .txsum .out { color:var(--bad); } .txsum .warn { color:var(--warn); }
+  .thdt { position:relative; display:inline-flex; align-items:center; }
+  .thdt input.thdt-in { width:calc(10ch + 46px); padding:7px 34px 7px 10px; font-variant-numeric:tabular-nums; } .thdt[data-kind="datetime"] input.thdt-in { width:calc(19ch + 46px); } .thdt input.thdt-in.bad { border-color:var(--bad); box-shadow:0 0 0 3px var(--bad-soft); }
+  .thdt-btn { position:absolute; right:4px; top:50%; transform:translateY(-50%); padding:5px; border-radius:7px; background:transparent; color:var(--muted); } .thdt-btn:hover { background:var(--card2); color:var(--accent); } .thdt-btn svg { width:17px; height:17px; display:block; }
+  .thdt-pop { position:absolute; top:calc(100% + 6px); right:0; z-index:20; width:286px; padding:10px; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 14px 36px rgba(20,24,40,.18); font-size:13.5px; } .thdt-pop.left { right:auto; left:0; }
+  .thdt-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; } .thdt-head button { background:transparent; color:var(--text2); padding:2px 11px; font-size:18px; line-height:1.2; } .thdt-head button:hover { background:var(--card2); }
+  .thdt-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; text-align:center; } .thdt-grid span { font-size:11.5px; color:var(--muted); padding:3px 0; }
+  .thdt-grid button { background:transparent; color:var(--text); padding:6px 0; border-radius:8px; font-variant-numeric:tabular-nums; } .thdt-grid button:hover { background:var(--accent-soft); } .thdt-grid button.out { color:var(--muted); opacity:.6; } .thdt-grid button.today { box-shadow:inset 0 0 0 1.5px var(--accent); } .thdt-grid button.sel { background:var(--accent); color:#fff; }
+  .thdt-time { display:flex; align-items:center; gap:5px; margin-top:8px; padding-top:8px; border-top:1px solid var(--line); } .thdt-time input { width:42px; padding:5px 4px; text-align:center; font-variant-numeric:tabular-nums; }
+  .thdt-foot { display:flex; align-items:center; gap:6px; margin-top:8px; }
   .page { display:none; } .page.on { display:block; }
   .empty { padding:28px; text-align:center; color:var(--muted); white-space:normal; }
   pre.report { background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; white-space:pre-wrap; font:13px/1.5 ui-monospace, Consolas, "Noto Sans Thai", monospace; }
@@ -77,7 +86,7 @@
     <div class="top">
       <h1 id="title">Dashboard</h1><span class="sub" id="subtitle"></span>
       <span class="spacer"></span>
-      <label class="small muted">วันที่</label><input type="date" id="day">
+      <label class="small muted" for="day_th">วันที่</label><input type="hidden" id="day" data-thdt="date">
       <button class="ghost icon" id="today">วันนี้</button>
     </div>
 
@@ -111,7 +120,7 @@
 
     <section class="page" id="page-txn">
       <div class="card"><div class="hd"><h2>Transaction Data</h2><select id="txDevice"><option value="">ทุกวอเล็ต</option></select><div class="tabs2"><button class="on all" data-dir="">ทั้งหมด</button><button class="in" data-dir="in">↓ เงินเข้า</button><button class="out" data-dir="out">↑ เงินออก</button></div>
-        <span class="range"><label for="txFrom">ตั้งแต่</label><input type="datetime-local" id="txFrom" step="1"><label for="txTo">ถึง</label><input type="datetime-local" id="txTo" step="1"><button class="ghost icon" id="txWholeDay">ทั้งวัน</button><button class="ghost icon" id="txLastHour">1 ชม. ล่าสุด</button></span></div>
+        <span class="range"><label for="txFrom_th">ตั้งแต่</label><input type="hidden" id="txFrom" data-thdt="datetime"><label for="txTo_th">ถึง</label><input type="hidden" id="txTo" data-thdt="datetime" data-end><button class="ghost icon" id="txWholeDay">ทั้งวัน</button><button class="ghost icon" id="txLastHour">1 ชม. ล่าสุด</button></span></div>
         <div class="txsum" id="txSum"></div>
         <div class="tablewrap"><table><thead><tr><th>เวลา</th><th>วอเล็ต</th><th>ประเภท</th><th class="num">จำนวนเงิน</th><th>ผู้โอน/ผู้รับ</th><th>อ้างอิง</th><th>ตรวจเทียบ</th><th>ข้อความ</th></tr></thead><tbody id="txRows"></tbody></table></div></div>
     </section>
@@ -172,6 +181,78 @@ let toastT; function toast(text) { const t = $("toast"); t.textContent = text; t
 const TITLES = { dash: ["Dashboard", "ภาพรวมทุกวอเล็ต"], wallet: ["Wallet", "เลือก/เพิ่ม/แก้ไขวอเล็ตและแบรนด์"], txn: ["Transaction Data", "ข้อมูลรายการรายบัญชี"], audit: ["Audit Matching", "ตรวจเทียบกับระบบหลังบ้าน"], exc: ["Exception Report", "รายการผิดปกติ"], sum: ["Daily Summary", "สรุปผลรายวัน"], set: ["Setting", "ค่าระบบ"] };
 let PAGE = "dash", STATE = null, DAY = null;
 const todayBkk = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+const TH_MONTHS = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+const TH_WD = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+const pad2 = (n) => String(n).padStart(2, "0");
+const CAL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
+const thFmt = (v, timed) => { if (!v) return ""; const [y, m, d] = v.slice(0, 10).split("-"); const t = v.slice(11, 19); return `${d}/${m}/${Number(y) + 543}${timed ? " " + (t.length === 5 ? t + ":00" : t || "00:00:00") : ""}`; };
+function thParse(s, timed, end) {
+  const m = /^\s*(\d{1,2})\s*[\/.-]\s*(\d{1,2})\s*[\/.-]\s*(\d{4}|\d{2})(?:\s+(\d{1,2})[:.](\d{1,2})(?:[:.](\d{1,2}))?)?\s*$/.exec(s || "");
+  if (!m) return null;
+  const [d, mo, y0, h, mi, se] = m.slice(1).map((x) => (x == null ? null : Number(x)));
+  const y = m[3].length === 2 ? y0 + 2500 - 543 : y0 > 2400 ? y0 - 543 : y0;
+  const t = h == null ? (end ? [23, 59, 59] : [0, 0, 0]) : [h, mi, se ?? 0];
+  if (y < 2000 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > new Date(Date.UTC(y, mo, 0)).getUTCDate() || t[0] > 23 || t[1] > 59 || t[2] > 59) return null;
+  return `${y}-${pad2(mo)}-${pad2(d)}` + (timed ? "T" + t.map(pad2).join(":") : "");
+}
+function thPicker(hidden) {
+  const timed = hidden.dataset.thdt === "datetime", end = "end" in hidden.dataset, ph = timed ? "วว/ดด/ปปปป ชช:นน:วว" : "วว/ดด/ปปปป";
+  const wrap = document.createElement("span"); wrap.className = "thdt"; wrap.dataset.kind = timed ? "datetime" : "date";
+  wrap.innerHTML = `<input type="text" class="thdt-in" id="${hidden.id}_th" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="${ph}" title="${ph} (ปี พ.ศ.${timed ? " · เวลา 24 ชั่วโมง" : ""})"><button type="button" class="thdt-btn" aria-label="เปิดปฏิทิน" title="เปิดปฏิทิน">${CAL_ICON}</button><div class="thdt-pop" hidden></div>`;
+  hidden.after(wrap);
+  const box = wrap.firstElementChild, pop = wrap.lastElementChild, base = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+  let view = null;
+  const show = () => { box.value = thFmt(base.get.call(hidden), timed); box.classList.remove("bad"); };
+  Object.defineProperty(hidden, "value", { configurable: true, get: () => base.get.call(hidden), set: (v) => { base.set.call(hidden, v); show(); } });
+  const commit = (v) => { if (v === hidden.value) return show(); hidden.value = v; hidden.dispatchEvent(new Event("change")); };
+  const timeOf = () => hidden.value.slice(11, 19) || (end ? "23:59:59" : "00:00:00");
+  const dateOf = () => hidden.value.slice(0, 10) || todayBkk();
+  const seek = (v) => { view = { y: Number(v.slice(0, 4)), m: Number(v.slice(5, 7)) - 1 }; };
+  function render() {
+    const sel = hidden.value.slice(0, 10), today = todayBkk(), first = Date.UTC(view.y, view.m, 1), start = first - new Date(first).getUTCDay() * 864e5;
+    let cells = "";
+    for (let i = 0; i < 42; i++) { const dt = new Date(start + i * 864e5), iso = dt.toISOString().slice(0, 10); cells += `<button type="button" data-d="${iso}" class="${dt.getUTCMonth() === view.m ? "" : "out"}${iso === today ? " today" : ""}${iso === sel ? " sel" : ""}">${dt.getUTCDate()}</button>`; }
+    const [h, mi, se] = timeOf().split(":");
+    pop.innerHTML = `<div class="thdt-head"><button type="button" data-nav="-1" aria-label="เดือนก่อน">‹</button><b>${TH_MONTHS[view.m]} ${view.y + 543}</b><button type="button" data-nav="1" aria-label="เดือนถัดไป">›</button></div>`
+      + `<div class="thdt-grid">${TH_WD.map((w) => `<span>${w}</span>`).join("")}${cells}</div>`
+      + (timed ? `<div class="thdt-time"><span>เวลา</span><input data-t="0" value="${h}" maxlength="2" inputmode="numeric" aria-label="ชั่วโมง"><b>:</b><input data-t="1" value="${mi}" maxlength="2" inputmode="numeric" aria-label="นาที"><b>:</b><input data-t="2" value="${se}" maxlength="2" inputmode="numeric" aria-label="วินาที"><span class="muted small">น. (24 ชม.)</span></div>` : "")
+      + `<div class="thdt-foot"><button type="button" class="ghost icon" data-today>วันนี้</button>${timed ? '<button type="button" class="ghost icon" data-time="00:00:00">00:00:00</button><button type="button" class="ghost icon" data-time="23:59:59">23:59:59</button>' : ""}<span class="spacer"></span><button type="button" class="icon" data-close>ตกลง</button></div>`;
+  }
+  const open = () => { if (!pop.hidden) return; seek(dateOf()); render(); pop.hidden = false; pop.classList.toggle("left", wrap.getBoundingClientRect().right < 300); };
+  const close = () => { pop.hidden = true; };
+  const applyTime = (padNow) => { const ins = [...pop.querySelectorAll("[data-t]")], t = ins.map((x, i) => pad2(Math.min(Number(x.value) || 0, i ? 59 : 23))); if (padNow) ins.forEach((x, i) => { x.value = t[i]; }); commit(`${dateOf()}T${t.join(":")}`); };
+  const typed = () => { const v = thParse(box.value, timed, end); if (!v) { if (box.value.trim() && box.value !== thFmt(hidden.value, timed)) toast(`รูปแบบไม่ถูกต้อง ใช้ ${ph} เช่น ${timed ? "27/11/2569 13:30:00" : "27/11/2569"}`); return show(); } commit(v); if (!pop.hidden) { seek(v); render(); } };
+  box.addEventListener("input", () => box.classList.toggle("bad", !!box.value.trim() && !thParse(box.value, timed, end)));
+  box.addEventListener("change", typed);
+  box.addEventListener("click", open);
+  box.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); typed(); } else if (e.key === "Escape") { show(); close(); } });
+  wrap.querySelector(".thdt-btn").addEventListener("click", () => (pop.hidden ? open() : close()));
+  pop.addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return; const ds = b.dataset;
+    if (ds.nav) { view.m += Number(ds.nav); if (view.m < 0) { view.m = 11; view.y--; } if (view.m > 11) { view.m = 0; view.y++; } return render(); }
+    if ("close" in ds) return close();
+    if (ds.time) { commit(`${dateOf()}T${ds.time}`); return render(); }
+    const d = ds.d || ("today" in ds ? todayBkk() : null); if (!d) return;
+    if (!timed) { commit(d); return close(); }
+    commit(`${d}T${timeOf()}`); seek(d); render();
+  });
+  pop.addEventListener("focusin", (e) => { if (e.target.dataset.t != null) e.target.select(); });
+  pop.addEventListener("input", (e) => {
+    const t = e.target; if (t.dataset.t == null) return;
+    t.value = t.value.replace(/\D/g, "").slice(0, 2);
+    if (t.value.length === 2) { applyTime(false); pop.querySelector(`[data-t="${Number(t.dataset.t) + 1}"]`)?.focus(); }
+  });
+  pop.addEventListener("change", (e) => { if (e.target.dataset.t != null) applyTime(true); });
+  pop.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { close(); return box.focus(); }
+    const t = e.target; if (t.dataset.t == null) return;
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); const n = t.dataset.t === "0" ? 24 : 60; t.value = pad2(((Number(t.value) || 0) + (e.key === "ArrowUp" ? 1 : n - 1)) % n); applyTime(false); }
+    else if (e.key === "Enter") { e.preventDefault(); applyTime(true); close(); }
+  });
+  document.addEventListener("pointerdown", (e) => { if (!pop.hidden && !wrap.contains(e.target)) close(); });
+  show();
+}
+document.querySelectorAll("input[data-thdt]").forEach(thPicker);
 $("day").value = todayBkk(); DAY = $("day").value;
 $("day").onchange = () => { DAY = $("day").value || todayBkk(); setTxRange(dayRange(DAY)); refresh(); };
 $("today").onclick = () => { $("day").value = todayBkk(); DAY = $("day").value; setTxRange(dayRange(DAY)); refresh(); };
@@ -233,7 +314,7 @@ function hourChart(hourly) {
 
 function renderWallets(s) {
   $("walletCount").textContent = `${s.devices.length} บัญชี`;
-  $("walletRows").innerHTML = s.devices.length ? s.devices.map((d) => { const [cls, label] = statusOf(d); return `<tr data-id="${d.id}"><td><b>${esc(d.name)}</b></td><td>${brandChip(d.brand)}</td><td>${esc(d.holder) || "—"}</td><td class="mono">…${esc(d.last4)}</td><td class="num mono">${d.daily_limit ? num(d.daily_limit) : "—"}</td><td><span class="st ${cls}"><i></i>${label}</span></td><td class="small">${d.last_seen_at ? thTime(d.last_seen_at) : "ยังไม่เคยส่ง"}</td><td class="mono muted">${esc(d.token_hint)}${d.tm_secret_set ? `<div class="small">API ✓ ต่ออายุ URL ก่อน ${new Date(new Date(d.tm_secret_at).setMonth(new Date(d.tm_secret_at).getMonth() + 4)).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "Asia/Bangkok" })}</div>` : ""}${d.tm_forward_url ? `<div class="small">ส่งต่อ → ${esc(urlHost(d.tm_forward_url))} · ${d.fwd_last_at ? `ล่าสุด ${d.fwd_last_status || "ส่งไม่ถึง"} · ${num(d.fwd_last_ms)} ms · ${thTime(d.fwd_last_at)} · 24 ชม. ${num(d.fwd_n_24h)} ครั้ง` : "ยังไม่มีรายการ"}${d.fwd_fail_24h ? ` · <b style="color:#e5484d">ล้มเหลว ${num(d.fwd_fail_24h)}</b>` : ""}</div>` : ""}</td>
+  $("walletRows").innerHTML = s.devices.length ? s.devices.map((d) => { const [cls, label] = statusOf(d); return `<tr data-id="${d.id}"><td><b>${esc(d.name)}</b></td><td>${brandChip(d.brand)}</td><td>${esc(d.holder) || "—"}</td><td class="mono">…${esc(d.last4)}</td><td class="num mono">${d.daily_limit ? num(d.daily_limit) : "—"}</td><td><span class="st ${cls}"><i></i>${label}</span></td><td class="small">${d.last_seen_at ? thTime(d.last_seen_at) : "ยังไม่เคยส่ง"}</td><td class="mono muted">${esc(d.token_hint)}${d.tm_token_hint ? `<div class="small">URL API แยก ${esc(d.tm_token_hint)}</div>` : ""}${d.tm_secret_set ? `<div class="small">API ✓ ต่ออายุ URL ก่อน ${new Date(new Date(d.tm_secret_at).setMonth(new Date(d.tm_secret_at).getMonth() + 4)).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit", timeZone: "Asia/Bangkok" })}</div>` : ""}${d.tm_forward_url ? `<div class="small">ส่งต่อ → ${esc(urlHost(d.tm_forward_url))} · ${d.fwd_last_at ? `ล่าสุด ${d.fwd_last_status || "ส่งไม่ถึง"} · ${num(d.fwd_last_ms)} ms · ${thTime(d.fwd_last_at)} · 24 ชม. ${num(d.fwd_n_24h)} ครั้ง` : "ยังไม่มีรายการ"}${d.fwd_fail_24h ? ` · <b style="color:#e5484d">ล้มเหลว ${num(d.fwd_fail_24h)}</b>` : ""}</div>` : ""}</td>
     <td style="text-align:right;white-space:nowrap"><button class="ghost icon" data-act="edit">แก้</button> <button class="ghost icon" data-act="rotate">token ใหม่</button> <button class="ghost icon" data-act="toggle">${d.active ? "ปิด" : "เปิด"}</button></td></tr>`; }).join("") : '<tr><td colspan="9"><div class="empty">ยังไม่มีวอเล็ต</div></td></tr>';
 }
 let EDIT = null;
@@ -294,9 +375,9 @@ let BOPLAN = null;
 $("boText").addEventListener("input", () => { const n = $("boText").value.split("\n").filter((l) => l.trim()).length; $("boInfo").textContent = n ? `${num(n)} บรรทัด` : ""; });
 $("boPreview").onclick = async () => { msg("bomsg", "", ""); $("boCommit").disabled = true; try { const d = await api("/api/audit/import", { method: "POST", body: JSON.stringify({ text: $("boText").value, day: DAY, dry_run: true }) }); BOPLAN = d; $("boCommit").disabled = !d.summary.ok; $("boCommit").textContent = d.summary.ok ? `นำเข้าและจับคู่ ${num(d.summary.ok)} รายการ` : "ไม่มีรายการที่อ่านได้";
   $("boPreviewWrap").innerHTML = `<div class="hint" style="margin-bottom:6px">อ่านได้ ${num(d.summary.ok)} · ผิดรูปแบบ ${num(d.summary.invalid)}</div><div class="tablewrap" style="max-height:300px;border:1px solid var(--line);border-radius:10px"><table><thead><tr><th class="num">บรรทัด</th><th>ผล</th><th>เวลา</th><th>ประเภท</th><th class="num">ยอด</th><th>เบอร์</th><th>อ้างอิง</th><th>ข้อความเดิม</th></tr></thead><tbody>${d.rows.map((r) => `<tr><td class="num">${r.line}</td><td>${r.status === "ok" ? '<span class="tag match">อ่านได้</span>' : `<span class="tag unmatched">ผิดรูปแบบ</span><div class="muted small">${esc(r.reason)}</div>`}</td><td class="mono">${r.at ? thTime(r.at) : ""}</td><td>${r.direction ? dirTag(r.direction) : ""}</td><td class="num mono">${r.amount != null ? num(r.amount) : ""}</td><td class="mono">${esc(r.last4 || "")}</td><td class="mono small">${esc(r.ref || "")}</td><td class="muted small mono" style="white-space:normal;max-width:420px">${esc(r.raw)}</td></tr>`).join("")}</tbody></table></div>`; } catch (err) { msg("bomsg", esc(err.message), "bad"); } };
-$("boCommit").onclick = async () => { $("boCommit").disabled = true; try { const d = await api("/api/audit/import", { method: "POST", body: JSON.stringify({ text: $("boText").value, day: DAY }) }); msg("bomsg", `นำเข้าใหม่ ${num(d.added)} · ซ้ำของเดิม ${num(d.dup)} · ${d.stats.map((s) => `${s.day}: MATCH ${s.match} · REVIEW ${s.review} · UNMATCHED ${s.unmatched} · มือถือเกิน ${s.extra}`).join(" / ")}`, "ok"); $("boPreviewWrap").innerHTML = ""; $("boText").value = ""; $("boInfo").textContent = ""; toast("จับคู่เสร็จ"); refresh(); } catch (err) { msg("bomsg", esc(err.message), "bad"); $("boCommit").disabled = false; } };
+$("boCommit").onclick = async () => { $("boCommit").disabled = true; try { const d = await api("/api/audit/import", { method: "POST", body: JSON.stringify({ text: $("boText").value, day: DAY }) }); msg("bomsg", `นำเข้าใหม่ ${num(d.added)} · ซ้ำของเดิม ${num(d.dup)} · ${d.stats.map((s) => `${thFmt(s.day)}: MATCH ${s.match} · REVIEW ${s.review} · UNMATCHED ${s.unmatched} · มือถือเกิน ${s.extra}`).join(" / ")}`, "ok"); $("boPreviewWrap").innerHTML = ""; $("boText").value = ""; $("boInfo").textContent = ""; toast("จับคู่เสร็จ"); refresh(); } catch (err) { msg("bomsg", esc(err.message), "bad"); $("boCommit").disabled = false; } };
 $("auditRerun").onclick = async () => { const r = await api("/api/audit/run", { method: "POST", body: JSON.stringify({ day: DAY }) }); toast(`จับคู่ใหม่: MATCH ${r.match} · REVIEW ${r.review} · UNMATCHED ${r.unmatched}`); refresh(); };
-$("auditClear").onclick = async () => { if (!confirm(`ลบข้อมูลหลังบ้านของวันที่ ${DAY} ทั้งหมด? (รายการจากมือถือไม่หาย)`)) return; await api(`/api/audit/${DAY}`, { method: "DELETE" }); toast("ล้างแล้ว"); refresh(); };
+$("auditClear").onclick = async () => { if (!confirm(`ลบข้อมูลหลังบ้านของวันที่ ${thFmt(DAY)} ทั้งหมด? (รายการจากมือถือไม่หาย)`)) return; await api(`/api/audit/${DAY}`, { method: "DELETE" }); toast("ล้างแล้ว"); refresh(); };
 async function loadAudit() {
   const a = await api(`/api/audit?day=${DAY}&device=${$("auditDevice").value}`);
   const c = { match: 0, review: 0, unmatched: 0 }; for (const r of a.bo) c[r.status] = (c[r.status] || 0) + 1;
@@ -317,7 +398,7 @@ async function loadSum() {
   const t = s.rows.reduce((a, x) => ({ in: a.in + x.in_amt, out: a.out + x.out_amt, fee: a.fee + x.fee, n: a.n + (x.in_n || 0) + (x.out_n || 0), e: a.e + x.exceptions }), { in: 0, out: 0, fee: 0, n: 0, e: 0 });
   $("sumRows").innerHTML = s.rows.length ? s.rows.map((x) => `<tr><td><b>${esc(x.name)}</b> <span class="muted small">…${esc(x.last4)}</span></td><td>${brandChip(x.brand)}</td><td class="num mono">${num(x.in_amt)}</td><td class="num mono">${num(x.out_amt)}</td><td class="num mono muted">${num(x.fee)}</td><td class="num mono">${num(x.in_amt - x.out_amt - x.fee)}</td><td class="num">${num((x.in_n || 0) + (x.out_n || 0))}</td><td class="num">${x.exceptions ? `<span class="tag unmatched">${x.exceptions}</span>` : '<span class="muted">0</span>'}</td></tr>`).join("") : '<tr><td colspan="8"><div class="empty">ยังไม่มีวอเล็ต</div></td></tr>';
   $("sumFoot").innerHTML = `<tr><td>รวม</td><td></td><td class="num mono">${num(t.in)}</td><td class="num mono">${num(t.out)}</td><td class="num mono">${num(t.fee)}</td><td class="num mono">${num(t.in - t.out - t.fee)}</td><td class="num">${num(t.n)}</td><td class="num">${num(t.e)}</td></tr>`;
-  $("dailyRows").innerHTML = d.rows.map((x) => { const top = [...x.per].sort((a, b) => b.in_amt - a.in_amt)[0]; return `<tr><td class="mono">${x.day}</td><td class="num mono">${num(x.in_amt)}</td><td class="num muted">${num(x.in_n)}</td><td class="num mono">${num(x.out_amt)}</td><td class="num muted">${num(x.out_n)}</td><td class="num mono">${num(x.in_amt - x.out_amt)}</td><td>${top && top.in_amt ? `${esc(top.name)} ${num(top.in_amt)}` : '<span class="muted">—</span>'}</td></tr>`; }).join("");
+  $("dailyRows").innerHTML = d.rows.map((x) => { const top = [...x.per].sort((a, b) => b.in_amt - a.in_amt)[0]; return `<tr><td class="mono">${thFmt(x.day)}</td><td class="num mono">${num(x.in_amt)}</td><td class="num muted">${num(x.in_n)}</td><td class="num mono">${num(x.out_amt)}</td><td class="num muted">${num(x.out_n)}</td><td class="num mono">${num(x.in_amt - x.out_amt)}</td><td>${top && top.in_amt ? `${esc(top.name)} ${num(top.in_amt)}` : '<span class="muted">—</span>'}</td></tr>`; }).join("");
   $("reportText").textContent = r.text;
 }
 $("copyReport").onclick = async () => { await navigator.clipboard.writeText($("reportText").textContent); toast("คัดลอกแล้ว"); };

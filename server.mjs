@@ -16,14 +16,20 @@ app.set("trust proxy", true);
 
 const sha = (s) => createHash("sha256").update(String(s)).digest("hex");
 const bad = (res, msg, code = 400) => res.status(code).json({ error: msg });
-const deviceByToken = db.prepare("SELECT * FROM devices WHERE token_hash = ? AND active = 1");
-const deviceByTokenAny = db.prepare("SELECT * FROM devices WHERE token_hash = ?");
+const deviceByToken = db.prepare("SELECT * FROM devices WHERE ? IN (token_hash, NULLIF(tm_token_hash, '')) AND active = 1");
+const deviceByTokenAny = db.prepare("SELECT * FROM devices WHERE ? IN (token_hash, NULLIF(tm_token_hash, ''))");
 
 const DUP_WINDOW_MS = 3 * 60_000;
+const phoneKey =(s) => { const m = String(s || "").replace(/[\s-]/g, "").match(/(?:\+?66|0)\d{8,9}(?!\d)/g); return m ? m.at(-1).slice(-9) : ""; };
 function insertTxn(deviceId, eventId, at, p, source) {
-  const twin = db.prepare(`SELECT t.id FROM txns t JOIN events e ON e.id = t.event_id WHERE t.device_id = ? AND t.direction = ? AND ABS(t.amount - ?) < 0.005 AND e.source <> ? AND t.at BETWEEN ? AND ? LIMIT 1`)
-    .get(deviceId, p.direction, p.amount, source, new Date(Date.parse(at) - DUP_WINDOW_MS).toISOString(), new Date(Date.parse(at) + DUP_WINDOW_MS).toISOString());
-  if (twin) { db.prepare("UPDATE events SET parsed = 2 WHERE id = ?").run(eventId); return { duplicate_of: twin.id }; }
+  const ms = Date.parse(at), key = phoneKey(p.counterpart);
+  const twin = db.prepare(`SELECT t.id, t.at, t.counterpart FROM txns t JOIN events e ON e.id = t.event_id WHERE t.device_id = ? AND t.direction = ? AND ABS(t.amount - ?) < 0.005 AND e.source <> ? AND t.at BETWEEN ? AND ?
+      AND NOT EXISTS (SELECT 1 FROM events x WHERE x.dup_of = t.id AND x.source = ?)`)
+    .all(deviceId, p.direction, p.amount, source, new Date(ms - DUP_WINDOW_MS).toISOString(), new Date(ms + DUP_WINDOW_MS).toISOString(), source)
+    .map((c) => ({ ...c, k: phoneKey(c.counterpart) }))
+    .filter((c) => !key || !c.k || c.k === key)
+    .sort((a, b) => (a.k === key ? 0 : 1) - (b.k === key ? 0 : 1) || Math.abs(Date.parse(a.at) - ms) - Math.abs(Date.parse(b.at) - ms))[0];
+  if (twin) { db.prepare("UPDATE events SET parsed = 2, dup_of = ? WHERE id = ?").run(twin.id, eventId); return { duplicate_of: twin.id }; }
   db.prepare("INSERT INTO txns (device_id, event_id, at, direction, amount, balance, counterpart, pattern, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
     .run(deviceId, eventId, at, p.direction, p.amount, p.balance ?? null, p.counterpart || "", p.pattern || source, p.kind || "");
   db.prepare("UPDATE events SET parsed = 1 WHERE id = ?").run(eventId);
@@ -39,6 +45,8 @@ function tmBody(rawText, query) {
   return { ...(query || {}) };
 }
 const tmJwt = (body) => (typeof body?.message === "string" ? body.message.trim() : "");
+const isHandshake = (pl) => pl?.server === "handshake" && pl.amount == null;
+const HANDSHAKE_TEXT = "TrueMoney API handshake (ยืนยัน URL ตอนตั้งค่าในแอป)";
 const isUnique = (e) => String(e?.message).includes("UNIQUE");
 
 function ingestTm(d, rawText, query) {
@@ -52,6 +60,10 @@ function ingestTm(d, rawText, query) {
     const p = j.payload ? parseTmPayload(j.payload) : null;
     try { store(`TrueMoney API ถูกปฏิเสธ: ${j.error}${p ? " · " + p.text : ""}`, rejectHash); } catch (e) { if (!isUnique(e)) throw e; }
     return { status: 401, json: { error: j.error } };
+  }
+  if (isHandshake(j.payload)) {
+    try { db.prepare("UPDATE events SET parsed = 3 WHERE id = ?").run(store(HANDSHAKE_TEXT + (j.verified ? "" : " · ยังไม่ตรวจลายเซ็น"), sha("tm-hs:" + jwt))); } catch (e) { if (!isUnique(e)) throw e; }
+    return { status: 200, json: { ok: true, handshake: true, verified: j.verified } };
   }
   db.prepare("UPDATE devices SET last_seen_at = ? WHERE id = ?").run(t, d.id);
   const p = parseTmPayload(j.payload);
@@ -125,7 +137,7 @@ const dayArg = (q) => (/^\d{4}-\d{2}-\d{2}$/.test(String(q || "")) ? String(q) :
 app.get("/api/state", (req, res) => {
   const day = dayArg(req.query.day);
   const since24 = new Date(Date.now() - 86400_000).toISOString();
-  const devices = db.prepare(`SELECT id, name, last4, brand, holder, daily_limit, token_hint, active, created_at, last_seen_at, tm_secret <> '' AS tm_secret_set, tm_secret_at, tm_forward_url,
+  const devices = db.prepare(`SELECT id, name, last4, brand, holder, daily_limit, token_hint, active, created_at, last_seen_at, tm_secret <> '' AS tm_secret_set, tm_secret_at, tm_forward_url, tm_token_hint,
       (SELECT at FROM forwards f WHERE f.device_id = devices.id ORDER BY f.id DESC LIMIT 1) fwd_last_at,
       (SELECT status FROM forwards f WHERE f.device_id = devices.id ORDER BY f.id DESC LIMIT 1) fwd_last_status,
       (SELECT ms FROM forwards f WHERE f.device_id = devices.id ORDER BY f.id DESC LIMIT 1) fwd_last_ms,
@@ -272,6 +284,28 @@ app.post("/api/devices/:id/rotate", (req, res) => {
   db.prepare("UPDATE devices SET token_hash = ?, token_hint = ? WHERE id = ?").run(sha(token), token.slice(0, 4) + "…" + token.slice(-3), id);
   res.json({ ok: true, token, hook: `/hook/${token}`, tm_hook: `/tm/${token}` });
 });
+app.post("/api/devices/:id/merge", (req, res) => {
+  const get = db.prepare("SELECT * FROM devices WHERE id = ?");
+  const a = get.get(Number(req.params.id)), b = get.get(Number(req.body?.into));
+  if (!a || !b || a.id === b.id) return bad(res, "ต้องระบุวอเล็ตต้นทางและปลายทางที่มีอยู่จริง และไม่ใช่ใบเดียวกัน");
+  if (a.tm_token_hash || b.tm_token_hash) return bad(res, "วอเล็ตนี้มี URL API แยกอยู่แล้ว รวมซ้ำไม่ได้");
+  if (a.tm_forward_url && b.tm_forward_url && a.tm_forward_url !== b.tm_forward_url) return bad(res, "URL ปลายทางของผู้ให้บริการสองรายการไม่ตรงกัน ตรวจก่อนรวม");
+  if (a.tm_secret && b.tm_secret && a.tm_secret !== b.tm_secret) return bad(res, "Webhook Secret สองรายการไม่ตรงกัน ตรวจก่อนรวม");
+  let moved = 0, duplicates = 0;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare("UPDATE devices SET tm_token_hash = ?, tm_token_hint = ?, tm_secret = ?, tm_secret_at = ?, tm_forward_url = ? WHERE id = ?")
+      .run(a.token_hash, a.token_hint, b.tm_secret || a.tm_secret, b.tm_secret ? b.tm_secret_at : a.tm_secret_at, b.tm_forward_url || a.tm_forward_url, b.id);
+    const txs = db.prepare("SELECT t.*, e.source FROM txns t JOIN events e ON e.id = t.event_id WHERE t.device_id = ? ORDER BY t.at, t.id").all(a.id);
+    db.prepare("UPDATE backoffice_rows SET txn_id = NULL, status = 'pending', note = '' WHERE txn_id IN (SELECT id FROM txns WHERE device_id = ?)").run(a.id);
+    db.prepare("DELETE FROM txns WHERE device_id = ?").run(a.id);
+    for (const tb of ["events", "forwards", "alerts"]) db.prepare(`UPDATE ${tb} SET device_id = ? WHERE device_id = ?`).run(b.id, a.id);
+    for (const t of txs) insertTxn(b.id, t.event_id, t.at, t, t.source || "sms").duplicate_of ? duplicates++ : moved++;
+    db.prepare("DELETE FROM devices WHERE id = ?").run(a.id);
+    db.exec("COMMIT");
+  } catch (e) { db.exec("ROLLBACK"); throw e; }
+  res.json({ ok: true, into: b.id, moved, duplicates });
+});
 app.post("/api/alerts/:id/close", (req, res) => { db.prepare("UPDATE alerts SET closed_at = ? WHERE id = ? AND closed_at IS NULL").run(now(), Number(req.params.id)); res.json({ ok: true }); });
 function reparseUnparsed() {
   let n = 0;
@@ -287,6 +321,7 @@ function reparseUnparsed() {
   for (const e of db.prepare("SELECT e.id, e.device_id, e.received_at, e.raw, d.tm_secret FROM events e JOIN devices d ON d.id = e.device_id WHERE e.parsed = 0 AND e.source = 'tm_api' ORDER BY e.id").all()) {
     const j = decodeTmJwt(tmJwt(tmBody(e.raw)), e.tm_secret);
     if (j.error || !j.verified) continue;
+    if (isHandshake(j.payload)) { db.prepare("UPDATE events SET parsed = 3, text = ? WHERE id = ?").run(HANDSHAKE_TEXT, e.id); continue; }
     const p = parseTmPayload(j.payload);
     if (!p.ok) continue;
     const h = sha("tm:" + p.id);
